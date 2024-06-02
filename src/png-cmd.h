@@ -5,13 +5,12 @@
 #include <stdint.h>
 #include <limits.h>
 #include <sys/stat.h>
+#include <arpa/inet.h>
 
-#define BYTE char
-#define BOOL bool
-#define TRUE true
+/* #define BYTE unsigned char */
+typedef uint8_t BYTE;
 #define FALSE false
-#define nullptr 0x0
-#define NULL 0
+// #define nullptr 0x0
 #ifndef __APPLE__
 #define FPOS_GETVAL(val) (val.__pos)
 #else
@@ -24,7 +23,7 @@
 #define INT32_FLIP(variable) (variable = ntohl(variable)) 
 
 typedef struct png_chunk {
-	fpos_t location; // Offset in file, highgly platform-dependent.
+	fpos_t location; // Offset in file, highly platform-dependent.
 	uint32_t size; // Not including name or checksum - watch out for integer (o/u)flows.
 	unsigned char name [ 5 ]; // Don't print without '%.4s' to avoid an OOB read.
 	BYTE* data; // Allocated using calloc so free this when you're finished.
@@ -55,15 +54,16 @@ static const char colour_type_descriptions[7][20] = {
 };
 
 // png_chunk.c
-BOOL read_chunk( FILE* file_handle, size_t max_length,
+bool read_chunk( FILE* file_handle, size_t max_length,
 	chunk* output_buffer );
-BOOL strip_chunk( FILE* png_handle, const char* chunk_name,
+bool strip_chunk( FILE* png_handle, const char* chunk_name,
 	const int chunk_index );
-BOOL dump_chunk( FILE* file_handle,
+bool dump_chunk( FILE* file_handle,
 	unsigned long target_chunk_index );
+void free_chunk( pchunk chnk );
 
 // file_io.c
-BOOL read_bytes( FILE* file_handle, size_t len, BYTE* buffer );
+bool read_bytes( FILE* file_handle, size_t len, BYTE* buffer );
 
 // main.c
 uint8_t get_number_length( int64_t number );

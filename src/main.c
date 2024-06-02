@@ -1,8 +1,10 @@
 #include "png-cmd.h"
 
-BOOL parse_ihdr( BYTE* data, ihdr_data* output_buffer ) {
+bool is_string_number( const char* string, size_t len );
+
+bool parse_ihdr( BYTE* data, ihdr_data* output_buffer ) {
 	if ( data == nullptr || output_buffer == nullptr ) {
-		return FALSE;
+		return false;
 	}
 
 	ihdr_data ihdr_output = { .width = 0, .height = 0, .bit_depth = 1,
@@ -40,10 +42,10 @@ BOOL parse_ihdr( BYTE* data, ihdr_data* output_buffer ) {
 	ihdr_output.interlace_type = data[ 12 ];
 
 	*output_buffer = ihdr_output;
-	return TRUE;
+	return true;
 }
 
-BOOL list_ancillary_full( FILE* png_handle ) {
+bool list_ancillary_full( FILE* png_handle ) {
 	chunk iterative_chunk;
 	ihdr_data ihdr;
 	unsigned int iterative_chunk_index = 0;
@@ -75,7 +77,7 @@ BOOL list_ancillary_full( FILE* png_handle ) {
 	printf( "\nFile summary:\n\tResolution:\t%d x %d\n\tBit-depth:\t%d\n\tColour-type:\t%d - %s\n\n",
 		ihdr.width, ihdr.height, ihdr.bit_depth, ihdr.colour_type, (ihdr.colour_type > 6 ) ? "Invalid"
 		: colour_type_descriptions[ihdr.colour_type] );
-	return TRUE;
+	return true;
 }
 
 int main( int argc, char** argv ) {
@@ -99,7 +101,7 @@ int main( int argc, char** argv ) {
 		return 1;
 	}
 
-	const FILE* png_handle = fopen( argv[ 1 ], "r+" );
+	FILE* png_handle = fopen( argv[ 1 ], "r+" );
 	if ( !png_handle ) {
 		printf( "Unable to open a handle to file '%s'.\n", argv[ 1 ] );
 		return 1;
@@ -114,7 +116,7 @@ int main( int argc, char** argv ) {
 	}
 	
 	// I'm not sure why but the last two bytes need to be reversed in order (0x0A <-> 0x1A)
-	// but it's probably something to do with endianess
+	// but it's probably something to do with endianness
 	if ( strncmp( magic_bytes_buffer, "\x89\x50\x4E\x47\x0D\x0A\x1A",
 		(long unsigned int)7 ) != 0 ) {
 		printf( "Unable to verify that the provided file ('%s') is a PNG.\n", argv[1] );
@@ -129,14 +131,14 @@ int main( int argc, char** argv ) {
 	else {
 		if ( argc == 4 ) {
 			const char* operation = argv[ 2 ]; // type of operation
-			const char* argument = argv[ 3 ];
+			char* argument = argv[ 3 ];
 
 			if ( strcmp( operation, "--strip" ) == 0 ||
 				 strcmp( operation, "-s" ) == 0 ) {
-				if ( is_string_number( argument, strnlen( argument,
+                          if ( is_string_number( argument, strnlen( (const char*)argument,
 					 get_number_length( LONG_MAX ) ) ) ) {
 					// ./program image.png --strip 0
-					char* const parse_end = nullptr;
+					char* parse_end = nullptr;
 					long target_chunk_index = strtol( argument, &parse_end, 10 );
 					if ( parse_end == argument ||
 						target_chunk_index > INT_MAX || target_chunk_index < INT_MIN ) {
@@ -153,7 +155,7 @@ int main( int argc, char** argv ) {
 			else if ( strcmp( operation, "--dump" ) == 0 ||
 					  strcmp( operation, "-d" ) == 0 ) {
 				// ./program image.png --dump 0
-				char* const parse_end = nullptr;
+				char* parse_end = nullptr;
 				unsigned long chunk_index = strtoll( argument, &parse_end, 10 );
 				if ( parse_end == argument ) {
 					printf("Chunk index unable to be parsed.");

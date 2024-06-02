@@ -2,23 +2,22 @@
 
 // If max_length == 0 we assume the developer intended to specify
 // 'unlimited' and disregard the buffer's size.
-BOOL read_chunk( FILE* handle, size_t max_length, chunk* output_buffer ) {
+bool read_chunk( FILE* handle, size_t max_length, chunk* output_buffer ) {
 	// Assuming that the handle's
 	// read position is currently
 	// positioned at the start of
 	// the chunk.
-	chunk current_chunk = { .size = 0, .data = nullptr, .checksum = 0x0,
-		.location = 0 };
+	chunk current_chunk = { 0 };
 
 	if ( fgetpos( handle, &current_chunk.location ) != 0 ) {
-		return FALSE;
+		return false;
 	}
 
 	// 00 00 00 0D | 49 48 44 52 | FA .. .. 9B | 12 A0 05 5F
 	//     SIZE    |     NAME    |     DATA    |    CRC32
 	// SIZE
-	if ( !read_bytes( handle, 4, (uint32_t*)&current_chunk.size ) ) {
-		return FALSE;
+	if ( !read_bytes( handle, 4, (unsigned char*)&current_chunk.size ) ) {
+		return false;
 	}
 	INT32_FLIP(current_chunk.size);
 
@@ -27,7 +26,7 @@ BOOL read_chunk( FILE* handle, size_t max_length, chunk* output_buffer ) {
 	for ( unsigned char i = 0; i < 4; i++ ) {
 		current_chunk.name[ i ] = fgetc( handle );
 		if ( feof( handle ) ) {
-			return FALSE;
+			return false;
 		}
 	}
 
@@ -36,7 +35,7 @@ BOOL read_chunk( FILE* handle, size_t max_length, chunk* output_buffer ) {
 		current_chunk.data = (BYTE*)nullptr; // Ignore it.
 		if ( fseek( handle, current_chunk.size, SEEK_CUR ) != 0x00 ||
 			ferror( handle ) != 0x00 )  {
-			return FALSE;
+			return false;
 		}
 	}
 	else if ( current_chunk.size != 0 ) {
@@ -48,7 +47,7 @@ BOOL read_chunk( FILE* handle, size_t max_length, chunk* output_buffer ) {
 			current_chunk.data[ i ] = fgetc( handle );
 			if ( feof( handle ) ) {
 				free( current_chunk.data );
-				return FALSE;
+				return false;
 			}
 		}
 	}
@@ -56,15 +55,15 @@ BOOL read_chunk( FILE* handle, size_t max_length, chunk* output_buffer ) {
 	// CRC32
 	if ( !read_bytes( handle, 4, (BYTE*)&current_chunk.checksum ) ) {
 		free( current_chunk.data );
-		return FALSE;
+		return false;
 	}
 	INT32_FLIP(current_chunk.checksum);
 
 	*output_buffer = current_chunk;
-	return TRUE;
+	return true;
 }
 
-BOOL strip_chunk( FILE* png_handle, const char* chunk_name, const int chunk_index ) {
+bool strip_chunk( FILE* png_handle, const char* chunk_name, const int chunk_index ) {
 	chunk iterative_chunk;
 	unsigned int chunk_iterative_index = 0;
 	if (chunk_name == nullptr && chunk_index == -1) {
@@ -118,14 +117,14 @@ BOOL strip_chunk( FILE* png_handle, const char* chunk_name, const int chunk_inde
 
 		printf( "Filled '%.4s' with null bytes.\n", iterative_chunk.name );
 		free_chunk( &iterative_chunk );
-		return TRUE;
+		return true;
 	}
 
 	printf( "Unable to locate chunk within the provided file.\n" );
 	return FALSE; // We couldn't find that chunk.
 }
 
-BOOL dump_chunk( FILE* file_handle, unsigned long target_chunk_index ) {
+bool dump_chunk( FILE* file_handle, unsigned long target_chunk_index ) {
 	chunk iterative_chunk;
 	unsigned long iterative_chunk_index = 0;
 	while ( read_chunk( file_handle, ( size_t ) 65535, &iterative_chunk ) ) {
@@ -140,8 +139,8 @@ BOOL dump_chunk( FILE* file_handle, unsigned long target_chunk_index ) {
 		// write its bytes.
 		char file_path[ 14 ];
 		
-		snprintf( file_path, 14, "%.4s-%64X\x00", iterative_chunk.name, FPOS_GETVAL(iterative_chunk.location) );
-		const FILE* const output_handle = fopen( file_path, "w" );
+		snprintf( file_path, 14, "%.4s-%64lX\x00", iterative_chunk.name, FPOS_GETVAL(iterative_chunk.location) );
+		FILE* const output_handle = fopen( file_path, "w" );
 		if ( output_handle == nullptr ) {
 			free_chunk( &iterative_chunk );
 			return FALSE;
@@ -156,7 +155,7 @@ BOOL dump_chunk( FILE* file_handle, unsigned long target_chunk_index ) {
 		}
 		free_chunk( &iterative_chunk );
 		fclose( output_handle );
-		return TRUE;
+		return true;
 	}
 	free_chunk( &iterative_chunk );
 	return FALSE;
